@@ -32,7 +32,7 @@ export default function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-primary flex flex-col justify-end animate-fade-in-up">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-primary flex flex-col items-center justify-center animate-fade-in-up">
       {/* Background Slideshow */}
       <div className="absolute inset-0 z-0 bg-primary">
         <img src="/images/pic1.jpg" alt="Market 1" className="slideshow-image" />
@@ -43,8 +43,8 @@ export default function Login({ onLoginSuccess }) {
       {/* Gradient Overlay */}
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-[rgba(20,40,26,0.95)] via-[rgba(20,40,26,0.5)] to-transparent pointer-events-none"></div>
 
-      {/* Content anchored to bottom */}
-      <div className="relative z-20 px-6 pb-12 w-full flex flex-col items-center text-center mt-auto">
+      {/* Content anchored to center */}
+      <div className="relative z-20 px-6 w-full flex flex-col items-center text-center">
         
         {/* Animated Form vs Main Card */}
         <div className="w-full max-w-sm relative flex flex-col items-center">
