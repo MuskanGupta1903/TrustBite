@@ -1,5 +1,6 @@
 const express = require('express');
 const { getCommunitySignal, getHotspots, getLocalStats } = require('../services/communityIntel');
+const { addClient } = require('../services/sse');
 
 const router = express.Router();
 
@@ -55,6 +56,14 @@ router.get('/stats', async (req, res) => {
     console.error('Stats error:', err);
     res.status(500).json({ error: 'Failed to fetch statistics.' });
   }
+});
+
+/**
+ * GET /api/community/stream
+ * Server-Sent Events (SSE) endpoint for real-time map/feed updates
+ */
+router.get('/stream', (req, res) => {
+  addClient(req, res);
 });
 
 module.exports = router;

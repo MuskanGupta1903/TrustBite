@@ -67,3 +67,23 @@ export const seedReports = async () => {
   if (!response.ok) throw new Error('Failed to seed reports');
   return response.json();
 };
+
+export const reverseGeocode = async (lat, lng) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept-Language': 'en'
+      }
+    });
+    if (!response.ok) throw new Error('Reverse geocoding failed');
+    const data = await response.json();
+    if (data && data.address) {
+      return data.address.city || data.address.town || data.address.municipality || data.address.suburb || data.address.village || 'Location detected';
+    }
+    return 'Location detected';
+  } catch (error) {
+    console.warn('Reverse geocoding warning:', error);
+    return 'Location detected';
+  }
+};

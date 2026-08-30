@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle as LeafletCircle, useMap
 import L from 'leaflet';
 import { fetchReports, fetchHotspots } from '../api/client';
 import BottomNav from '../components/BottomNav';
+import { useCommunityRealtime } from '../contexts/CommunityRealtimeContext';
 
 // Fix Leaflet's default icon path issues in React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -43,6 +44,8 @@ export default function MapTab() {
   const [timeWindow, setTimeWindow] = useState('7d');
   const [showHotspots, setShowHotspots] = useState(true);
 
+  const { realtimeReports, realtimeHotspots } = useCommunityRealtime();
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -59,7 +62,29 @@ export default function MapTab() {
     loadData();
   }, [filter, timeWindow]);
 
-  const filteredReports = reports.filter(r => filter === 'all' || r.category === filter);
+  // Merge REST reports and Realtime SSE reports, deduplicating by ID
+  const allReportsMap = new Map();
+  reports.forEach(r => allReportsMap.set(r.id, r));
+  realtimeReports.forEach(r => allReportsMap.set(r.id, r));
+  const mergedReports = Array.from(allReportsMap.values());
+
+  // Apply filters on the frontend to the merged dataset
+  const filteredReports = mergedReports.filter(r => {
+    // Category filter
+    if (filter !== 'all' && r.category !== filter) return false;
+    
+    // Time filter
+    const reportTime = new Date(r.created_at).getTime();
+    const now = Date.now();
+    const ms24h = 24 * 60 * 60 * 1000;
+    if (timeWindow === '24h' && (now - reportTime > ms24h)) return false;
+    if (timeWindow === '7d' && (now - reportTime > 7 * ms24h)) return false;
+    if (timeWindow === '30d' && (now - reportTime > 30 * ms24h)) return false;
+
+    return true;
+  });
+
+  const activeHotspots = realtimeHotspots.length > 0 ? realtimeHotspots : hotspots;
 
   // India center
   const center = [22.5937, 78.9629];
@@ -127,8 +152,20 @@ export default function MapTab() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
+          {/* Empty State Overlay */}
+          {filteredReports.length === 0 && (!showHotspots || activeHotspots.length === 0) && (
+            <div className="absolute inset-0 z-[500] flex items-center justify-center pointer-events-none">
+              <div className="bg-white/95 backdrop-blur-sm border border-border-subtle rounded-2xl p-6 shadow-xl text-center max-w-xs animate-fade-in-up">
+                <p className="font-heading font-bold text-lg text-primary mb-2">Map is Empty</p>
+                <p className="text-secondary text-sm leading-relaxed">
+                  No community reports in this area yet.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Hotspot circles */}
-          {showHotspots && hotspots.map((hotspot, i) => {
+          {showHotspots && activeHotspots.map((hotspot, i) => {
             const colors = hotspotColors[hotspot.level] || hotspotColors.LOW_ACTIVITY;
             const radius = Math.max(2000, Math.min(hotspot.report_count * 500, 10000));
             return (

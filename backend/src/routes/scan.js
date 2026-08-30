@@ -4,8 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const { analyzeImage } = require('../services/visionAI');
 const { validateInput, computeImageHash, validateFileType, SCREENING_STATUSES } = require('../services/inputValidator');
-const { getCommunitySignal, checkDuplicate, checkSpam, getEmptyCommunitySignal } = require('../services/communityIntel');
+const { getCommunitySignal, checkDuplicate, checkSpam, getEmptyCommunitySignal, getHotspots, getLocalStats } = require('../services/communityIntel');
 const { synthesizeRisk } = require('../services/riskEngine');
+const { emitEvent } = require('../services/sse');
 const db = require('../db');
 
 const router = express.Router();
@@ -164,7 +165,35 @@ router.post('/', upload.single('photo'), async (req, res) => {
     // Clean up uploaded file after processing
     cleanupFile(req.file.path);
 
-    // STEP 11: Return structured response
+    // STEP 11: Real-Time Geo-Sync Broadcast via SSE
+    // Fetch newly updated authoritative community intelligence
+    const [updatedHotspots, updatedStats] = await Promise.all([
+      getHotspots(),
+      getLocalStats(locality || 'Unknown Location')
+    ]);
+
+    // Sanitize the report for public broadcast
+    const sanitizedReport = {
+      id: reportId,
+      category: category || 'unknown',
+      item_name: validation.detectedItem || itemName || legacyResult.itemName,
+      risk_level: legacyResult.riskLevel,
+      ai_reasoning: validation.reasoning || legacyResult.reasoning,
+      screening_status: validation.screeningStatus,
+      locality: locality || 'Unknown Location',
+      lat: parsedLat ? parseFloat(parsedLat.toFixed(3)) : parsedLat,
+      lng: parsedLng ? parseFloat(parsedLng.toFixed(3)) : parsedLng,
+      created_at: new Date().toISOString(), // Use current time as it just inserted
+      user_name: 'Anonymous'
+    };
+
+    emitEvent('new-report', {
+      report: sanitizedReport,
+      hotspots: updatedHotspots,
+      stats: updatedStats
+    });
+
+    // STEP 12: Return structured response
     res.json({
       success: true,
       id: reportId,

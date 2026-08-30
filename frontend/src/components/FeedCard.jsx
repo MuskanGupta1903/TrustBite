@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Circle, Loader2, AlertTriangle, Activity, TrendingUp, Zap } from 'lucide-react';
 import { fetchCommunityNearby } from '../api/client';
+import { useCommunityRealtime } from '../contexts/CommunityRealtimeContext';
 
 export default function FeedCard() {
   const [feed, setFeed] = useState([]);
@@ -14,6 +15,8 @@ export default function FeedCard() {
     const timer = setInterval(() => setLiveClock(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const { realtimeReports } = useCommunityRealtime();
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -31,9 +34,20 @@ export default function FeedCard() {
     };
     
     fetchReports();
-    const intervalId = setInterval(fetchReports, 10000); 
-    return () => clearInterval(intervalId);
+    // Removed polling since we now use SSE real-time updates
   }, []);
+
+  // Merge REST feed and Realtime SSE feed, deduplicating by ID
+  const mergedFeed = useMemo(() => {
+    const allReportsMap = new Map();
+    feed.forEach(r => allReportsMap.set(r.id, r));
+    realtimeReports.forEach(r => allReportsMap.set(r.id, r));
+    
+    // Convert back to array and sort by created_at descending
+    return Array.from(allReportsMap.values()).sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+  }, [feed, realtimeReports]);
 
   // Check for community alerts near user
   useEffect(() => {
@@ -57,7 +71,7 @@ export default function FeedCard() {
 
   const riskAreas = useMemo(() => {
     const areas = {};
-    feed.forEach(report => {
+    mergedFeed.forEach(report => {
       if (report.risk_level === 'high' || report.risk_level === 'caution') {
         if (!areas[report.locality]) {
           areas[report.locality] = { count: 0, items: new Set(), highRisk: 0, reports24h: 0 };
@@ -135,18 +149,18 @@ export default function FeedCard() {
             <Loader2 className="w-6 h-6 animate-spin text-secondary" />
           </div>
         ) : activeTab === 'feed' ? (
-          feed.length === 0 ? (
+          mergedFeed.length === 0 ? (
             <div className="flex justify-center items-center h-full text-secondary text-sm font-mono">
               No recent reports
             </div>
           ) : (
             <div className="flex flex-col">
-              {feed.map((entry, index) => {
+              {mergedFeed.map((entry, index) => {
                 const styles = getRiskStyles(entry.risk_level);
                 return (
                   <div 
                     key={entry.id} 
-                    className={`px-4 py-3.5 flex items-center justify-between ${index !== feed.length - 1 ? 'border-b border-dashed border-border-subtle' : ''}`}
+                    className={`px-4 py-3.5 flex items-center justify-between ${index !== mergedFeed.length - 1 ? 'border-b border-dashed border-border-subtle' : ''}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="font-mono text-xs font-medium text-secondary shrink-0">{formatTime(entry.created_at)}</span>

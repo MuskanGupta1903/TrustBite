@@ -24,7 +24,6 @@ export default function ScanFlow() {
   const [preview, setPreview] = useState(null);
   const [answers, setAnswers] = useState({});
   const [userName, setUserName] = useState(localStorage.getItem('tb_user_name') || '');
-  const [userCity, setUserCity] = useState(localStorage.getItem('tb_user_location') || 'Koramangala, BLR');
   const [itemName, setItemName] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
@@ -33,9 +32,14 @@ export default function ScanFlow() {
 
   useEffect(() => {
     if (file) {
+      // Revoke the old URL to prevent memory leaks when user selects a new image
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
+      // Purposefully NOT returning a cleanup function here.
+      // This allows the objectUrl to remain valid after navigation to Result.jsx.
     }
   }, [file]);
 
@@ -81,7 +85,7 @@ export default function ScanFlow() {
     try {
       const data = {
         category,
-        locality: userCity || 'Unknown Location',
+        locality: 'Current Location',
         lat: currentLat,
         lng: currentLng,
         userName,
@@ -215,16 +219,6 @@ export default function ScanFlow() {
                   value={userName}
                   onChange={e => setUserName(e.target.value)}
                   placeholder="e.g. Rahul"
-                  className="w-full bg-white border border-border-subtle rounded-xl px-4 py-2 text-primary focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-primary mb-1">City / Locality</label>
-                <input 
-                  type="text" 
-                  value={userCity}
-                  onChange={e => setUserCity(e.target.value)}
-                  placeholder="e.g. Koramangala, BLR"
                   className="w-full bg-white border border-border-subtle rounded-xl px-4 py-2 text-primary focus:outline-none focus:border-primary transition-colors"
                 />
               </div>

@@ -3,7 +3,7 @@ import { fetchLocalStats } from '../api/client';
 
 export default function StatCard() {
   const [stats, setStats] = useState({ scansToday: 0, totalScans: 0 });
-  const locality = localStorage.getItem('tb_user_location') || '';
+  const locality = 'Current Location';
 
   useEffect(() => {
     const loadStats = async () => {

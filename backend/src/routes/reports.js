@@ -36,7 +36,16 @@ router.get('/', (req, res) => {
       console.error('Error fetching reports:', err);
       return res.status(500).json({ error: 'Failed to fetch reports' });
     }
-    res.json(rows);
+    
+    // Sanitize and anonymize data for public map exposure
+    const sanitizedRows = (rows || []).map(r => ({
+      ...r,
+      user_name: 'Anonymous', // Do not expose exact identity
+      lat: r.lat ? parseFloat(r.lat.toFixed(3)) : r.lat,
+      lng: r.lng ? parseFloat(r.lng.toFixed(3)) : r.lng,
+    }));
+    
+    res.json(sanitizedRows);
   });
 });
 

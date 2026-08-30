@@ -82,7 +82,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`TrustBite server running on port ${PORT}`);
   console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT CONFIGURED — set GEMINI_API_KEY'}`);
 });

@@ -6,6 +6,7 @@ export default function Result() {
   const location = useLocation();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   if (!location.state || !location.state.resultData) {
     return <Navigate to="/home" replace />;
@@ -275,9 +276,15 @@ export default function Result() {
         )}
 
         {/* Uploaded Image Preview */}
-        {previewUrl && (
+        {previewUrl && !imageError && (
           <div className="w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-sm border border-border-subtle animate-fade-in-up" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
-            <img src={previewUrl} alt="Analyzed item" className="w-full h-full object-cover opacity-90" />
+            <img src={previewUrl} alt="Analyzed item" className="w-full h-full object-cover opacity-90" onError={() => setImageError(true)} />
+          </div>
+        )}
+        {previewUrl && imageError && (
+          <div className="w-full aspect-video bg-black/5 rounded-3xl overflow-hidden shadow-sm border border-border-subtle flex flex-col items-center justify-center animate-fade-in-up text-secondary" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
+            <ImageOff className="w-8 h-8 mb-2 opacity-40" />
+            <p className="text-sm font-medium opacity-60">Image unavailable after refresh</p>
           </div>
         )}
 
@@ -318,6 +325,8 @@ export default function Result() {
  * Uses existing TrustBite card styling
  */
 function InvalidInputScreen({ navigate, previewUrl, title, icon, message, detail, categories, suggestion, showRescan }) {
+  const [imageError, setImageError] = useState(false);
+
   return (
     <div className="min-h-screen bg-page-bg font-body flex flex-col pb-safe">
       <div className="p-4 flex items-center justify-between border-b border-border-subtle bg-white sticky top-0 z-10">
@@ -353,9 +362,15 @@ function InvalidInputScreen({ navigate, previewUrl, title, icon, message, detail
         </div>
 
         {/* Image Preview */}
-        {previewUrl && (
+        {previewUrl && !imageError && (
           <div className="w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-sm border border-border-subtle animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
-            <img src={previewUrl} alt="Uploaded image" className="w-full h-full object-cover opacity-70" />
+            <img src={previewUrl} alt="Uploaded image" className="w-full h-full object-cover opacity-70" onError={() => setImageError(true)} />
+          </div>
+        )}
+        {previewUrl && imageError && (
+          <div className="w-full aspect-video bg-black/5 rounded-3xl overflow-hidden shadow-sm border border-border-subtle flex flex-col items-center justify-center animate-fade-in-up text-secondary" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+            <ImageOff className="w-8 h-8 mb-2 opacity-40" />
+            <p className="text-sm font-medium opacity-60">Image unavailable after refresh</p>
           </div>
         )}
 
