@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm install @rolldown/binding-linux-x64-gnu --no-save --force && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
