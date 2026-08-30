@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Circle, Loader2, AlertTriangle, Activity } from 'lucide-react';
+import { Circle, Loader2, AlertTriangle, Activity, TrendingUp, Zap } from 'lucide-react';
+import { fetchCommunityNearby } from '../api/client';
 
 export default function FeedCard() {
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'risk'
+  const [communityAlert, setCommunityAlert] = useState(null);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -26,16 +28,39 @@ export default function FeedCard() {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Check for community alerts near user
+  useEffect(() => {
+    const checkAlerts = async () => {
+      try {
+        if ('geolocation' in navigator) {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          const data = await fetchCommunityNearby(position.coords.latitude, position.coords.longitude);
+          if (data.anomaly_detected || data.trend === 'UNUSUAL_SPIKE') {
+            setCommunityAlert(data);
+          }
+        }
+      } catch (err) {
+        // Silently fail — alerts are best-effort
+      }
+    };
+    checkAlerts();
+  }, []);
+
   const riskAreas = useMemo(() => {
     const areas = {};
     feed.forEach(report => {
       if (report.risk_level === 'high' || report.risk_level === 'caution') {
         if (!areas[report.locality]) {
-          areas[report.locality] = { count: 0, items: new Set(), highRisk: 0 };
+          areas[report.locality] = { count: 0, items: new Set(), highRisk: 0, reports24h: 0 };
         }
         areas[report.locality].count++;
         if (report.risk_level === 'high') areas[report.locality].highRisk++;
         areas[report.locality].items.add(report.item_name);
+        // Check if recent
+        const reportAge = Date.now() - new Date(report.created_at).getTime();
+        if (reportAge < 24 * 60 * 60 * 1000) areas[report.locality].reports24h++;
       }
     });
     return Object.entries(areas)
@@ -43,6 +68,7 @@ export default function FeedCard() {
         locality, 
         count: data.count, 
         highRisk: data.highRisk,
+        reports24h: data.reports24h,
         items: Array.from(data.items) 
       }))
       .sort((a, b) => b.count - a.count);
@@ -61,6 +87,17 @@ export default function FeedCard() {
 
   return (
     <div className="bg-white/90 border border-border-subtle rounded-xl flex flex-col h-full overflow-hidden backdrop-blur-sm">
+      
+      {/* Community Alert Banner */}
+      {communityAlert && (
+        <div className="bg-danger/5 border-b border-danger/20 px-4 py-2.5 flex items-center gap-2">
+          <Zap size={14} className="text-danger shrink-0" />
+          <p className="text-xs font-bold text-primary truncate">
+            Elevated food-safety activity detected nearby
+          </p>
+        </div>
+      )}
+
       {/* Header Tabs */}
       <div className="flex border-b border-border-subtle">
         <button 
@@ -131,6 +168,12 @@ export default function FeedCard() {
                     <span className="font-semibold">Items: </span>
                     {area.items.join(', ')}
                   </p>
+                  {area.reports24h > 0 && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <TrendingUp size={10} className="text-danger" />
+                      <span className="text-[10px] font-bold text-danger">{area.reports24h} in last 24h</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
