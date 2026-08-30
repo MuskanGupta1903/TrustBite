@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import SlideToLogin from '../components/SlideToLogin';
 import { Leaf } from 'lucide-react';
+import { reverseGeocode } from '../api/client';
 
 export default function Login({ onLoginSuccess }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
-  const [locationStr, setLocationStr] = useState('Koramangala, BLR');
+  const [locationStatus, setLocationStatus] = useState('idle'); // idle, requesting, granted, denied
   
   const [typedText, setTypedText] = useState('');
   const fullText = "One photo protects a neighborhood,\nnot just one buyer.";
@@ -22,17 +23,38 @@ export default function Login({ onLoginSuccess }) {
     return () => clearInterval(interval);
   }, []);
 
+  const handleRequestLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setLocationStatus('denied');
+      return;
+    }
+    
+    setLocationStatus('requesting');
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const locality = await reverseGeocode(latitude, longitude);
+        localStorage.setItem('tb_user_location', locality);
+        setLocationStatus('granted');
+      },
+      (error) => {
+        setLocationStatus('denied');
+      },
+      { timeout: 10000 }
+    );
+  };
+
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    if (name.trim()) {
+    if (name.trim() && locationStatus === 'granted') {
       localStorage.setItem('tb_user_name', name);
-      localStorage.setItem('tb_user_location', locationStr);
       onLoginSuccess();
     }
   };
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-primary flex flex-col justify-end animate-fade-in-up">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-primary flex flex-col items-center justify-center animate-fade-in-up">
       {/* Background Slideshow */}
       <div className="absolute inset-0 z-0 bg-primary">
         <img src="/images/pic1.jpg" alt="Market 1" className="slideshow-image" />
@@ -43,8 +65,8 @@ export default function Login({ onLoginSuccess }) {
       {/* Gradient Overlay */}
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-[rgba(20,40,26,0.95)] via-[rgba(20,40,26,0.5)] to-transparent pointer-events-none"></div>
 
-      {/* Content anchored to bottom */}
-      <div className="relative z-20 px-6 pb-12 w-full flex flex-col items-center text-center mt-auto">
+      {/* Content anchored to center */}
+      <div className="relative z-20 px-6 w-full flex flex-col items-center text-center">
         
         {/* Animated Form vs Main Card */}
         <div className="w-full max-w-sm relative flex flex-col items-center">
@@ -92,19 +114,53 @@ export default function Login({ onLoginSuccess }) {
                   className="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-success/50"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">Locality</label>
-                <input 
-                  type="text"
-                  required 
-                  value={locationStr}
-                  onChange={(e) => setLocationStr(e.target.value)}
-                  className="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-success/50"
-                />
+
+              <div className="bg-white/10 p-4 rounded-xl border border-white/20 shadow-inner">
+                <h3 className="text-sm font-bold text-white mb-1">Why we need your location</h3>
+                <p className="text-xs text-white/80 mb-2 leading-relaxed">TrustBite uses your approximate location to connect your report with food-safety activity nearby and show you relevant community alerts.</p>
+                <p className="text-[10.5px] text-white/60 mb-3 leading-relaxed">Your location is used only when needed — TrustBite does not continuously track you.</p>
+                
+                {locationStatus === 'idle' && (
+                  <button 
+                    type="button" 
+                    onClick={handleRequestLocation}
+                    className="w-full bg-[#E5F5E0] text-primary text-sm font-bold py-2.5 rounded-lg hover:bg-white active:scale-95 transition-all shadow-sm"
+                  >
+                    Enable Location
+                  </button>
+                )}
+                {locationStatus === 'requesting' && (
+                  <button type="button" disabled className="w-full bg-white/10 text-white/70 text-sm font-bold py-2.5 rounded-lg cursor-wait">
+                    Detecting your location...
+                  </button>
+                )}
+                {locationStatus === 'denied' && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-[#FF8B8B] font-medium bg-[#FF8B8B]/10 p-2 rounded-lg border border-[#FF8B8B]/20">Location access is needed to show food-safety activity near you.</p>
+                    <button 
+                      type="button" 
+                      onClick={handleRequestLocation}
+                      className="w-full bg-white/10 text-white text-sm font-bold py-2.5 rounded-lg border border-white/30 hover:bg-white/20 active:scale-95 transition-all"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+                {locationStatus === 'granted' && (
+                  <div className="w-full bg-success/20 text-success text-sm font-bold py-2.5 rounded-lg text-center border border-success/30 flex items-center justify-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                    </span>
+                    Location detected
+                  </div>
+                )}
               </div>
+
               <button 
                 type="submit" 
-                className="w-full bg-white text-primary font-bold py-3.5 rounded-xl mt-2 hover:bg-white/90 active:scale-[0.98] transition-transform"
+                disabled={locationStatus !== 'granted' || !name.trim()}
+                className="w-full bg-white text-primary font-bold py-3.5 rounded-xl mt-2 hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed"
               >
                 Continue to App
               </button>

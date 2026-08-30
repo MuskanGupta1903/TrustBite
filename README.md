@@ -28,13 +28,15 @@ This happens every day, in every unorganized market, to people who have no acces
 
 ## What TrustBite actually does
 
-TrustBite is a localized food-safety intelligence platform, built around three layers that each do a small, honest job — and become genuinely powerful when combined:
+TrustBite is a localized food-safety intelligence platform, built around a multi-stage AI pipeline that separates visual signals from community intelligence:
 
 | Layer | What it does |
 |---|---|
-| 🔍 **Screening** | User photographs a dairy or produce item; AI-powered visual analysis checks for signals like wax coating on produce or curdling/discoloration in dairy, combined with a quick sensory questionnaire (smell, texture, time since purchase) |
-| 📍 **Aggregation** | Every scan is geo-tagged and logged. TrustBite surfaces "X reports near you in the last 7 days" and plots hotspots on a live map — this is where the real intelligence lives, not in any single scan |
-| 📰 **Context** | Cross-references the user's locality against publicly reported food-safety incidents, adding real-world grounding beyond the app's own user base |
+| 🔍 **Input Validation** | Rejects non-food items, checks image quality, and detects category mismatches before any safety screening occurs. |
+| 👁️ **Visual Screening** | Uses **Google Gemini 2.0 Flash Vision API** to analyze the food item for visible anomalies (e.g., discoloration, unusual texture). |
+| 🗣️ **User Context** | Captures sensory details (smell, texture) that a photo cannot capture. |
+| 📍 **Community Intelligence** | Aggregates nearby reports using geographic distance, calculates temporal trends (24h/7d), and detects unusual spikes or hotspots. |
+| ⚡ **Risk Synthesis** | Combines all signals into an explainable "TrustBite Signal" with clear evidence provenance (Visual + Sensory + Community + Time). |
 
 Every result is labeled exactly for what it is: **a screening aid, not a lab-grade verdict.** We'd rather be honest and useful than impressive and wrong.
 
@@ -63,10 +65,11 @@ Every result is labeled exactly for what it is: **a screening aid, not a lab-gra
 - **LottieFiles / dotLottie-React:** Lightweight, high-quality `.lottie` animations
 
 ### Backend
-- **Node.js:** JavaScript runtime for the server
-- **Express.js:** REST API framework, also serves the static frontend build
+- **Node.js & Express.js:** REST API framework, orchestrating the intelligence pipeline
+- **Google Gemini API:** Real vision-based food screening using `gemini-2.0-flash`
 - **Multer:** Middleware for handling multipart/form-data (image uploads)
-- **SQLite3:** Lightweight, file-based relational database for reports and risk data
+- **SQLite3:** Lightweight relational database with geographic indexing
+- **Intelligence Services:** Custom backend engines for Input Validation, Community Aggregation, Risk Synthesis, and Anomaly Detection
 
 ### Deployment & Tools
 - **Render:** Full-stack deployment hosting the Express server and React static build
@@ -96,13 +99,19 @@ cd frontend && npm install
 cd ../backend && npm install
 ```
 
-**3. Run the backend**
+**3. Set up environment variables**
+Create a `.env` file in the `backend` directory (see `backend/.env.example`):
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+**4. Run the backend**
 ```bash
 cd backend
 npm start
 ```
 
-**4. Run the frontend** (in a separate terminal)
+**5. Run the frontend** (in a separate terminal)
 ```bash
 cd frontend
 npm run dev

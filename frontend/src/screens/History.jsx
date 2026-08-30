@@ -14,7 +14,24 @@ export default function History() {
   const getRiskStyles = (risk) => {
     if (risk === 'high') return { color: 'text-danger', dot: 'fill-danger text-danger', bg: 'bg-danger/10', border: 'border-danger/30' };
     if (risk === 'caution') return { color: 'text-caution', dot: 'fill-caution text-caution', bg: 'bg-caution/10', border: 'border-caution/30' };
+    if (risk === 'non_food' || risk === 'unsupported' || risk === 'mismatch' || risk === 'low_quality' || risk === 'duplicate') {
+      return { color: 'text-secondary', dot: 'fill-secondary text-secondary', bg: 'bg-gray-100', border: 'border-gray-200' };
+    }
     return { color: 'text-success', dot: 'fill-success text-success', bg: 'bg-success/10', border: 'border-success/30' };
+  };
+
+  const getStatusLabel = (record) => {
+    const status = record.screeningStatus || record.riskLevel;
+    switch(status) {
+      case 'non_food': case 'NON_FOOD': return 'Not Food';
+      case 'unsupported': case 'UNSUPPORTED_FOOD': return 'Unsupported';
+      case 'mismatch': case 'CATEGORY_MISMATCH': return 'Mismatch';
+      case 'low_quality': case 'LOW_IMAGE_QUALITY': return 'Low Quality';
+      case 'duplicate': case 'DUPLICATE_REPORT': return 'Duplicate';
+      case 'high': return 'High Risk';
+      case 'caution': return 'Caution';
+      default: return 'Low Risk';
+    }
   };
 
   const formatDate = (isoString) => {
@@ -49,7 +66,7 @@ export default function History() {
                   <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${styles.bg} ${styles.border}`}>
                     <Circle className={`w-2 h-2 ${styles.dot}`} />
                     <span className={`text-[10px] font-bold tracking-widest uppercase ${styles.color}`}>
-                      {record.riskLevel === 'high' ? 'High Risk' : record.riskLevel === 'caution' ? 'Caution' : 'Low Risk'}
+                      {getStatusLabel(record)}
                     </span>
                   </div>
                 </div>

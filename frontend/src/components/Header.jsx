@@ -1,7 +1,13 @@
+import { useState, useEffect } from 'react';
 import { MapPin, Leaf } from 'lucide-react';
 
 export default function Header() {
-  const userLocation = localStorage.getItem('tb_user_location') || 'Koramangala, BLR';
+  const [userLocation, setUserLocation] = useState('');
+
+  useEffect(() => {
+    // Read from localStorage on mount. The login screen enforces that this is set.
+    setUserLocation(localStorage.getItem('tb_user_location') || 'Location detected');
+  }, []);
 
   return (
     <header className="flex justify-between items-center pb-5 pt-2 mb-6">

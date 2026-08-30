@@ -6,10 +6,13 @@ import { uploadScan } from '../api/client';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 const loadingTexts = [
-  "Analyzing visual texture...",
+  "Validating image...",
+  "Identifying food item...",
+  "Performing visual screening...",
   "Processing sensory inputs...",
-  "Cross-referencing locality...",
-  "Finalizing risk assessment..."
+  "Cross-referencing community reports...",
+  "Analyzing geographic patterns...",
+  "Synthesizing TrustBite signal..."
 ];
 
 export default function ScanFlow() {
@@ -21,17 +24,22 @@ export default function ScanFlow() {
   const [preview, setPreview] = useState(null);
   const [answers, setAnswers] = useState({});
   const [userName, setUserName] = useState(localStorage.getItem('tb_user_name') || '');
-  const [userCity, setUserCity] = useState(localStorage.getItem('tb_user_location') || 'Koramangala, BLR');
   const [itemName, setItemName] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (file) {
+      // Revoke the old URL to prevent memory leaks when user selects a new image
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
+      // Purposefully NOT returning a cleanup function here.
+      // This allows the objectUrl to remain valid after navigation to Result.jsx.
     }
   }, [file]);
 
@@ -47,6 +55,7 @@ export default function ScanFlow() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setError(null);
     }
   };
 
@@ -55,6 +64,7 @@ export default function ScanFlow() {
     
     setIsAnalyzing(true);
     setLoadingTextIndex(0);
+    setError(null);
 
     // Get current location, fallback to India center if unavailable
     let currentLat = 22.5937;
@@ -75,7 +85,7 @@ export default function ScanFlow() {
     try {
       const data = {
         category,
-        locality: userCity || 'Unknown Location',
+        locality: 'Current Location',
         lat: currentLat,
         lng: currentLng,
         userName,
@@ -83,26 +93,34 @@ export default function ScanFlow() {
         ...answers
       };
       
-      const result = await uploadScan(file, data);
+      const response = await uploadScan(file, data);
       
       // Save to personal history in localStorage
       const historyRecord = {
         id: Date.now(),
         date: new Date().toISOString(),
         category,
-        itemName: result.result.itemName,
-        riskLevel: result.result.riskLevel
+        itemName: response.result?.itemName || itemName || 'Unknown',
+        riskLevel: response.result?.riskLevel || 'unknown',
+        screeningStatus: response.result?.screeningStatus || response.validation?.input_status || 'unknown',
+        signalLevel: response.risk?.signal_level || null,
       };
       
       const existingHistory = JSON.parse(localStorage.getItem('tb_history') || '[]');
       localStorage.setItem('tb_history', JSON.stringify([historyRecord, ...existingHistory]));
 
-      // Navigate to results page with data
-      navigate('/result', { state: { resultData: result.result, previewUrl: preview } });
+      // Navigate to results page with full structured data
+      navigate('/result', { 
+        state: { 
+          resultData: response.result, 
+          previewUrl: preview,
+          fullResponse: response,
+        } 
+      });
       
     } catch (error) {
       console.error("Scan failed:", error);
-      alert("Analysis failed. Please try again.");
+      setError(error.message || "Analysis failed. Please try again.");
       setIsAnalyzing(false);
     }
   };
@@ -138,6 +156,17 @@ export default function ScanFlow() {
 
       <div className="flex-1 overflow-y-auto p-6 flex flex-col max-w-lg mx-auto w-full">
         
+        {/* Error Banner */}
+        {error && (
+          <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 mb-4 flex items-start gap-3">
+            <X className="w-5 h-5 text-danger shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-primary">Analysis Failed</p>
+              <p className="text-sm text-secondary mt-1">{error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Photo Section */}
         {!preview ? (
           <div 
@@ -158,7 +187,7 @@ export default function ScanFlow() {
           <div className="w-full aspect-square bg-black rounded-3xl overflow-hidden relative mb-8 shadow-md">
             <img src={preview} alt="Scan preview" className="w-full h-full object-cover" />
             <button 
-              onClick={() => { setFile(null); setPreview(null); }}
+              onClick={() => { setFile(null); setPreview(null); setError(null); }}
               className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70"
             >
               <X className="w-5 h-5" />
@@ -190,16 +219,6 @@ export default function ScanFlow() {
                   value={userName}
                   onChange={e => setUserName(e.target.value)}
                   placeholder="e.g. Rahul"
-                  className="w-full bg-white border border-border-subtle rounded-xl px-4 py-2 text-primary focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-primary mb-1">City / Locality</label>
-                <input 
-                  type="text" 
-                  value={userCity}
-                  onChange={e => setUserCity(e.target.value)}
-                  placeholder="e.g. Koramangala, BLR"
                   className="w-full bg-white border border-border-subtle rounded-xl px-4 py-2 text-primary focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
