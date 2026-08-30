@@ -2,7 +2,7 @@ services:
   - type: web
     name: trustbite-app
     env: node
-    buildCommand: cd backend && npm install && cd ../frontend && npm install && npm run build
+    buildCommand: cd backend && npm install && cd ../frontend && rm -f package-lock.json && npm install && npm run build
     startCommand: cd backend/src && node server.js
     envVars:
       - key: NODE_ENV
