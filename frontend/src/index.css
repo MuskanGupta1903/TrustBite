@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-body bg-page-bg text-primary;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .animate-ambient-float {
+    animation: ambientFloat 8s ease-in-out infinite alternate;
+  }
+  .animate-ambient-float.delay-1 { animation-delay: 1.2s; animation-duration: 7s; }
+  .animate-ambient-float.delay-2 { animation-delay: 0.5s; animation-duration: 9s; }
+  .animate-ambient-float.delay-3 { animation-delay: 2.1s; animation-duration: 6.5s; }
+  .animate-ambient-float.delay-4 { animation-delay: 1.8s; animation-duration: 8.5s; }
+  .animate-ambient-float.delay-5 { animation-delay: 0.2s; animation-duration: 7.5s; }
+  .animate-ambient-float.delay-6 { animation-delay: 2.5s; animation-duration: 8.2s; }
+
+  .slideshow-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    animation: crossfade 12s infinite;
+    opacity: 0;
+  }
+
+  .slideshow-image:nth-child(1) { animation-delay: 0s; }
+  .slideshow-image:nth-child(2) { animation-delay: 4s; }
+  .slideshow-image:nth-child(3) { animation-delay: 8s; }
+
+  @keyframes crossfade {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    33% { opacity: 1; }
+    43% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+}
+
+@keyframes ambientFloat {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-18px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ambient-float {
+    animation: none;
+  }
+}
+
+/* 
+  Slideshow animations 
+  3 images -> 9s loop
+  Each visible for 3s (33% of the time)
+  Fade transition takes about 1s (11%)
+*/
+.slideshow-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  animation: slideFade 9s infinite;
+}
+
+.slideshow-image:nth-child(1) { animation-delay: 0s; }
+.slideshow-image:nth-child(2) { animation-delay: 3s; }
+.slideshow-image:nth-child(3) { animation-delay: 6s; }
+
+@keyframes slideFade {
+  0%   { opacity: 1; }
+  22%  { opacity: 1; }
+  33%  { opacity: 0; }
+  88%  { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideshow-image {
+    animation: none;
+  }
+  .slideshow-image:nth-child(1) {
+    opacity: 1;
+  }
+}
