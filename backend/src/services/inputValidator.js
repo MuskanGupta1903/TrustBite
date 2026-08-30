@@ -21,6 +21,8 @@ const SCREENING_STATUSES = {
   LIKELY_VISUAL_CONCERN: 'LIKELY_VISUAL_CONCERN',
   DUPLICATE_REPORT: 'DUPLICATE_REPORT',
   AI_UNAVAILABLE: 'AI_UNAVAILABLE',
+  AI_SERVICE_UNAVAILABLE: 'AI_SERVICE_UNAVAILABLE',
+  AI_ANALYSIS_FAILED: 'AI_ANALYSIS_FAILED',
 };
 
 // Valid signal levels for the final TrustBite signal
@@ -44,6 +46,14 @@ const SIGNAL_LEVELS = {
 function validateInput(geminiResult, userCategory, userItemName) {
   const result = { ...geminiResult };
   const overrides = [];
+
+  // RULE 0: AI Failure
+  if (result.screeningStatus === 'AI_SERVICE_UNAVAILABLE' || result.screeningStatus === 'AI_ANALYSIS_FAILED' || result.errorType) {
+    result.screeningStatus = result.screeningStatus === 'AI_SERVICE_UNAVAILABLE' ? SCREENING_STATUSES.AI_SERVICE_UNAVAILABLE : SCREENING_STATUSES.AI_ANALYSIS_FAILED;
+    result.signalLevel = SIGNAL_LEVELS.NONE;
+    overrides.push('AI analysis failed or was unavailable. No screening performed.');
+    return buildValidationResult(result, result.screeningStatus, overrides);
+  }
 
   // RULE 1: Non-food detection — absolute override
   if (result.foodStatus === 'NON_FOOD' || result.detectedCategory === 'NON_FOOD') {

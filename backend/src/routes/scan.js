@@ -223,6 +223,16 @@ router.post('/', upload.single('photo'), async (req, res) => {
  */
 function mapToLegacyResult(validation, riskSignal) {
   switch (validation.inputStatus) {
+    case 'AI_SERVICE_UNAVAILABLE':
+    case 'AI_ANALYSIS_FAILED':
+    case 'AI_UNAVAILABLE':
+      return {
+        itemName: validation.detectedItem || 'Unknown',
+        riskLevel: 'error',
+        reasoning: validation.reasoning || 'Visual analysis is temporarily unavailable.',
+        screeningStatus: validation.inputStatus,
+      };
+
     case 'NON_FOOD':
       return {
         itemName: validation.detectedItem || 'Non-food item',

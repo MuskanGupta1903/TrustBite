@@ -16,6 +16,21 @@ export default function Result() {
   // Determine which view to show based on validation/screening status
   const screeningStatus = resultData.screeningStatus || resultData.riskLevel;
 
+  // AI Service Error
+  if (screeningStatus === 'AI_SERVICE_UNAVAILABLE' || screeningStatus === 'AI_ANALYSIS_FAILED' || resultData.riskLevel === 'error') {
+    return <InvalidInputScreen 
+      navigate={navigate} 
+      previewUrl={previewUrl}
+      title="Analysis Unavailable"
+      icon={<AlertTriangle className="w-12 h-12 text-caution" />}
+      message="Visual analysis is temporarily unavailable."
+      detail=""
+      categories={[]}
+      suggestion="Please try again in a moment."
+      showRescan={true}
+    />;
+  }
+
   // Non-food / Invalid input states
   if (screeningStatus === 'NON_FOOD' || resultData.riskLevel === 'non_food') {
     return <InvalidInputScreen 

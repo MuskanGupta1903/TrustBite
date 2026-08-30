@@ -196,6 +196,20 @@ test('UNCERTAIN: ambiguous image returns INSUFFICIENT_EVIDENCE', () => {
   assertEqual(result.inputStatus, 'INSUFFICIENT_EVIDENCE');
 });
 
+test('AI_FAILED: failed AI call returns error state, not VALID_FOOD', () => {
+  const geminiResult = {
+    foodStatus: 'UNCERTAIN',
+    detectedCategory: 'UNKNOWN',
+    detectedItem: 'Unknown',
+    screeningStatus: 'AI_SERVICE_UNAVAILABLE',
+    errorType: 'AI_SERVICE_UNAVAILABLE',
+  };
+  const result = validateInput(geminiResult, 'dairy', '');
+  assertEqual(result.inputStatus, 'AI_SERVICE_UNAVAILABLE');
+  assertEqual(result.screeningStatus, 'AI_SERVICE_UNAVAILABLE');
+  assertNotEqual(result.signalLevel, 'low');
+});
+
 // ─── RISK ENGINE TESTS ───
 console.log('\n=== Risk Engine Tests ===\n');
 

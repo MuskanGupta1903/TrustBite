@@ -1,27 +1,26 @@
 // TrustBite — Gemini Vision AI Service
-// Replaces the mock implementation with real Google Gemini Vision API
+// Replaces the legacy implementation with the current official @google/genai SDK
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs');
 const path = require('path');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
-let genAI = null;
-let model = null;
+let ai = null;
 
 function initializeGemini() {
   if (!GEMINI_API_KEY) {
-    console.error('WARNING: GEMINI_API_KEY is not set. AI analysis will use fallback mode.');
+    console.error('WARNING: GEMINI_API_KEY is not set. AI analysis will fail.');
     return false;
   }
   try {
-    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    console.log('Gemini Vision AI initialized successfully.');
+    ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    console.log(`Gemini Vision AI initialized successfully with model: ${GEMINI_MODEL}`);
     return true;
   } catch (err) {
-    console.error('Failed to initialize Gemini:', err.message);
+    console.error('Failed to initialize Gemini SDK:', err.message);
     return false;
   }
 }
@@ -53,7 +52,7 @@ JSON schema:
   "detectedItem": "string describing the specific item, e.g. 'milk', 'apple', 'certificate'",
   "imageQuality": {
     "status": "GOOD" | "POOR" | "UNUSABLE",
-    "issues": ["list of specific issues if any, e.g. 'blurry', 'too dark', 'food item too small']"
+    "issues": ["list of specific issues if any"]
   },
   "visualObservations": ["list of specific visual observations about the food item"],
   "visualConcern": "NONE" | "POSSIBLE" | "LIKELY" | "INSUFFICIENT_EVIDENCE",
@@ -90,28 +89,21 @@ function fileToGenerativePart(filePath) {
 
 /**
  * Analyze a food image using Gemini Vision API
- * @param {string} imagePath - Path to the uploaded image
- * @param {string} userCategory - User-selected category ('dairy' or 'produce')
- * @param {string} explicitItemName - User-specified item name (optional)
- * @returns {object} Structured analysis result
  */
 const analyzeImage = async (imagePath, userCategory, explicitItemName = null) => {
-  console.log(`[Gemini] Analyzing image: ${imagePath} | category: ${userCategory} | item: ${explicitItemName}`);
+  console.log(`[Gemini] Analyzing image: ${imagePath} | category: ${userCategory} | model: ${GEMINI_MODEL}`);
 
-  // If Gemini not initialized, try once more
-  if (!model) {
+  if (!ai) {
     const initialized = initializeGemini();
     if (!initialized) {
-      return createFallbackResponse('AI_UNAVAILABLE', 'Gemini API is not configured. Please set GEMINI_API_KEY.');
+      return createFallbackResponse('AI_SERVICE_UNAVAILABLE', 'Gemini API is not configured. Please check environment variables.');
     }
   }
 
-  // Validate file exists and is readable
   if (!fs.existsSync(imagePath)) {
     return createFallbackResponse('FILE_ERROR', 'Image file not found.');
   }
 
-  // Check file size (reject files > 10MB)
   const stats = fs.statSync(imagePath);
   if (stats.size > 10 * 1024 * 1024) {
     return createFallbackResponse('FILE_TOO_LARGE', 'Image file exceeds 10MB limit.');
@@ -119,64 +111,60 @@ const analyzeImage = async (imagePath, userCategory, explicitItemName = null) =>
 
   try {
     const imagePart = fileToGenerativePart(imagePath);
-
     const userPrompt = `Analyze this image for TrustBite food-safety screening.
 The user selected category: "${userCategory || 'unknown'}"${explicitItemName ? `\nThe user says this item is: "${explicitItemName}"` : ''}
 
-Respond with JSON only. Follow the schema from your instructions exactly.`;
+Respond with JSON only. Follow the schema exactly.`;
 
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: TRUSTBITE_SYSTEM_PROMPT + '\n\n' + userPrompt },
-          imagePart
-        ]
-      }],
-      generationConfig: {
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [
+        { text: TRUSTBITE_SYSTEM_PROMPT + '\n\n' + userPrompt },
+        imagePart
+      ],
+      config: {
         temperature: 0.1,
-        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
       },
     });
 
-    const response = result.response;
-    const text = response.text();
-    
-    console.log('[Gemini] Raw response:', text.substring(0, 500));
+    const text = response.text;
+    console.log('[Gemini] Raw response snippet:', text?.substring(0, 500) || 'empty');
 
-    // Parse the JSON response, handling potential markdown code fences
+    if (!text) {
+      return createFallbackResponse('AI_ANALYSIS_FAILED', 'Empty response from model.');
+    }
+
     const parsed = parseGeminiResponse(text);
-    
     if (!parsed) {
-      console.error('[Gemini] Failed to parse response as JSON');
+      console.error('[Gemini] Failed to parse response as JSON:', text);
       return createFallbackResponse('PARSE_ERROR', 'AI response could not be parsed.');
     }
 
-    // Normalize and validate the parsed response
     return normalizeGeminiResult(parsed);
 
   } catch (error) {
     console.error('[Gemini] API Error:', error.message);
     
+    // Explicitly handle 404s (e.g., model not found)
+    if (error.message?.includes('404') || error.message?.includes('not found')) {
+       return createFallbackResponse('AI_SERVICE_UNAVAILABLE', `Model ${GEMINI_MODEL} is currently unavailable or not found.`);
+    }
     if (error.message?.includes('API_KEY')) {
       return createFallbackResponse('API_KEY_ERROR', 'Invalid or missing Gemini API key.');
-    }
-    if (error.message?.includes('SAFETY')) {
-      return createFallbackResponse('SAFETY_BLOCKED', 'Content was blocked by safety filters. Please try a different image.');
     }
     if (error.message?.includes('quota') || error.message?.includes('429')) {
       return createFallbackResponse('RATE_LIMITED', 'API rate limit reached. Please wait a moment and try again.');
     }
     
-    return createFallbackResponse('API_ERROR', `AI analysis failed: ${error.message}`);
+    return createFallbackResponse('AI_ANALYSIS_FAILED', `AI analysis failed: ${error.message}`);
   }
 };
 
 /**
- * Parse Gemini response text into JSON, handling code fences
+ * Parse Gemini response text into JSON
  */
 function parseGeminiResponse(text) {
-  // Remove markdown code fences if present
   let cleaned = text.trim();
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
@@ -185,7 +173,6 @@ function parseGeminiResponse(text) {
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    // Try to extract JSON from the text
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
@@ -232,15 +219,18 @@ function createFallbackResponse(errorType, message) {
     imageQuality: { status: 'GOOD', issues: [] },
     visualObservations: [],
     visualConcern: 'INSUFFICIENT_EVIDENCE',
-    screeningStatus: 'INSUFFICIENT_EVIDENCE',
+    // Key change: Use specific AI failure statuses rather than INSUFFICIENT_EVIDENCE
+    // so the validation layer can reject it without marking it as a successful scan
+    screeningStatus: (errorType === 'AI_SERVICE_UNAVAILABLE' || errorType === 'API_KEY_ERROR' || errorType === 'RATE_LIMITED') 
+      ? 'AI_SERVICE_UNAVAILABLE' 
+      : 'AI_ANALYSIS_FAILED',
     reasoning: message,
-    limitations: ['AI analysis was unavailable. Result is based on limited information.'],
+    limitations: ['AI analysis was unavailable.'],
     source: 'fallback',
     errorType,
   };
 }
 
-// Initialize on module load
 initializeGemini();
 
 module.exports = {
