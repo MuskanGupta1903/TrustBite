@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- Replace this with your exported Canva banner (1280x400px). Save it as assets/trustbite-banner.png in your repo root. -->
-<img src="./assets/trustbite-banner.png" alt="TrustBite — one photo protects a neighborhood, not just one buyer" width="100%" />
+<img src="./frontend/src/assets/trustbite-banner.png" alt="TrustBite — one photo protects a neighborhood, not just one buyer" width="100%" />
 
 # TrustBite 🌱
 
