@@ -7,6 +7,13 @@ export default function FeedCard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'risk'
   const [communityAlert, setCommunityAlert] = useState(null);
+  const [liveClock, setLiveClock] = useState(new Date());
+
+  // Real-time ticking clock
+  useEffect(() => {
+    const timer = setInterval(() => setLiveClock(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -81,7 +88,9 @@ export default function FeedCard() {
   };
 
   const formatTime = (isoString) => {
-    const d = new Date(isoString);
+    // Append Z to SQLite timestamps so they are parsed as UTC and converted correctly to local time
+    const dateStr = (isoString.includes('T') && isoString.includes('Z')) ? isoString : isoString.replace(' ', 'T') + 'Z';
+    const d = new Date(dateStr);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
@@ -105,7 +114,10 @@ export default function FeedCard() {
           className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'feed' ? 'text-primary border-b-2 border-primary bg-white' : 'text-secondary bg-gray-50/50 hover:bg-gray-50'}`}
         >
           <Activity size={16} />
-          Live Feed
+          <div className="flex flex-col items-center">
+            <span>Live Feed</span>
+            <span className="text-[9px] font-mono font-medium opacity-60 uppercase tracking-widest">{liveClock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} LOCAL</span>
+          </div>
         </button>
         <button 
           onClick={() => setActiveTab('risk')}
