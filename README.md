@@ -145,6 +145,6 @@ Built by two people who got tired of not knowing if the milk was actually fine.
 
 <div align="center">
 
-*Built for Tech Eximius 2026 — Artificial Intelligence & Machine Learning track.*
+*Built for the community , because WE are a part of it.*
 
 </div>
